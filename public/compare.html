@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QA Agent Hub — URL Comparison</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <header class="topnav">
+    <div class="brand">QA Agent Hub</div>
+    <nav>
+      <a href="/dashboard.html">Dashboard</a>
+      <a href="/scrape.html">Scrape</a>
+      <a href="/functional.html">Functional Tests</a>
+      <a href="/issues.html">Issues</a>
+      <a href="/pins.html">Review Pins</a>
+      <a href="/compare.html" class="active">URL Comparison</a>
+    </nav>
+  </header>
+
+  <main class="container-wide">
+    <h1>URL Comparison</h1>
+    <p class="muted">Compare a Dev (staging) URL against its Prod URL across menus, links, FAQs, popups, email quote, promo codes, and general page content.</p>
+
+    <div class="issues-toolbar">
+      <h2>Partner Dashboard</h2>
+    </div>
+    <div id="partner-dashboard" class="partner-grid"></div>
+
+    <h2>Run a comparison</h2>
+    <div class="card compare-card">
+      <div class="run-option-group">
+        <span class="run-option-label">Partner name (optional, used to group runs on the dashboard above)</span>
+        <input id="partner-name" type="text" placeholder="e.g. Travlr">
+      </div>
+
+      <div class="run-option-group">
+        <span class="run-option-label">Comparison mode</span>
+        <div class="checkbox-group">
+          <label class="checkbox-item"><input type="radio" name="mode" id="mode-paths" value="paths" checked> Static pages (a list of page paths)</label>
+          <label class="checkbox-item"><input type="radio" name="mode" id="mode-quote-flow" value="quote-flow"> Quote wizard (Get Quote &rarr; Plan Options &rarr; Travellers &rarr; Payment)</label>
+        </div>
+      </div>
+
+      <div class="run-option-group">
+        <span class="run-option-label">Dev (staging)</span>
+        <input id="dev-url" type="text" placeholder="https://partner.test.insurancebycovermore.com">
+        <input id="dev-username" type="text" placeholder="Site guard username (optional)">
+        <input id="dev-password" type="password" placeholder="Site guard password (optional)">
+      </div>
+      <div class="run-option-group">
+        <span class="run-option-label">Prod</span>
+        <input id="prod-url" type="text" placeholder="https://partner.insurancebycovermore.com">
+      </div>
+
+      <div id="paths-section" class="run-option-group">
+        <span class="run-option-label">Page paths (one per line, blank = just "/")</span>
+        <textarea id="paths-input" rows="4" placeholder="/&#10;/faq&#10;/quote"></textarea>
+      </div>
+
+      <div id="quote-flow-section" class="run-option-group hidden">
+        <span class="run-option-label">Test traveller / trip details used to drive the quote wizard</span>
+        <input id="qf-destination" type="text" placeholder="Destination (e.g. Bali)" value="Bali">
+        <input id="qf-depart-days" type="text" placeholder="Depart in how many days (e.g. 30)" value="30">
+        <input id="qf-trip-length" type="text" placeholder="Trip length in days (e.g. 7)" value="7">
+        <input id="qf-ages" type="text" placeholder="Traveller ages, comma-separated (e.g. 35)" value="35">
+        <p class="muted">Payment page will be reached and compared, but never submitted — no real charge is made. Confirmation is not tested.</p>
+      </div>
+
+      <div class="run-option-group">
+        <label class="checkbox-item"><input type="checkbox" id="headed-mode"> Watch the browser live while it runs (opens a visible Chromium window on this machine)</label>
+      </div>
+
+      <button id="compare-btn" class="btn-primary">Compare</button>
+      <div id="status" class="status-line"></div>
+    </div>
+
+    <div class="card compare-card">
+      <div class="run-option-group">
+        <span class="run-option-label">Past runs</span>
+        <select id="past-runs"><option value="">Select a past run...</option></select>
+      </div>
+      <a id="export-link" class="btn-secondary hidden" href="#">Export to Excel</a>
+    </div>
+
+    <div id="results" class="issue-list"></div>
+  </main>
+
+  <script src="/js/compare.js"></script>
+</body>
+</html>

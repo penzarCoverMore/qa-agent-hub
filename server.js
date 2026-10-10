@@ -4,11 +4,17 @@ const path = require('node:path');
 
 const { USERS, findUser } = require('./lib/users');
 const { runScrape } = require('./scraper/contentScraper');
+const { runComparison } = require('./scraper/urlComparator');
+const { runQuoteFlowComparison } = require('./scraper/quoteFlowComparator');
 const {
   listIssues,
   updateIssueStatus,
   listTestRunsWithSteps,
   getDashboardSummary,
+  recordComparisonRun,
+  listComparisonRuns,
+  getComparisonRun,
+  listLatestRunPerPartner,
   createPin,
   listPinsForPage,
   listAllPins,
@@ -38,6 +44,7 @@ const MIME = {
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
 };
 
 function sendJson(res, status, data) {
@@ -147,6 +154,101 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === '/api/functional/runs' && req.method === 'GET') {
     return sendJson(res, 200, listTestRunsWithSteps());
+  }
+
+  if (pathname === '/api/compare' && req.method === 'POST') {
+    const { devBaseUrl, prodBaseUrl, devUsername, devPassword, paths, partnerName, headed } = await readJsonBody(req);
+    try {
+      new URL(devBaseUrl);
+      new URL(prodBaseUrl);
+    } catch {
+      return sendJson(res, 400, { error: 'devBaseUrl and prodBaseUrl must be valid URLs' });
+    }
+    const result = await runComparison({ devBaseUrl, prodBaseUrl, devUsername, devPassword, paths, headed });
+    const comparisonRunId = recordComparisonRun({
+      runId: result.runId,
+      devBaseUrl: result.devBaseUrl,
+      prodBaseUrl: result.prodBaseUrl,
+      paths: result.paths,
+      status: result.status,
+      startedAt: result.startedAt,
+      finishedAt: result.finishedAt,
+      diffs: result.diffs,
+      partnerName,
+      screenshots: result.screenshots,
+    });
+    return sendJson(res, 200, { ...result, comparisonRunId });
+  }
+
+  if (pathname === '/api/compare/quote-flow' && req.method === 'POST') {
+    const { devBaseUrl, prodBaseUrl, devUsername, devPassword, testProfile, partnerName, headed } = await readJsonBody(req);
+    try {
+      new URL(devBaseUrl);
+      new URL(prodBaseUrl);
+    } catch {
+      return sendJson(res, 400, { error: 'devBaseUrl and prodBaseUrl must be valid URLs' });
+    }
+    const result = await runQuoteFlowComparison({ devBaseUrl, prodBaseUrl, devUsername, devPassword, testProfile, headed });
+    const comparisonRunId = recordComparisonRun({
+      runId: result.runId,
+      devBaseUrl: result.devBaseUrl,
+      prodBaseUrl: result.prodBaseUrl,
+      paths: result.paths,
+      status: result.status,
+      startedAt: result.startedAt,
+      finishedAt: result.finishedAt,
+      diffs: result.diffs,
+      mode: 'quote_flow',
+      stepsReachedDev: result.stepsReachedDev,
+      stepsReachedProd: result.stepsReachedProd,
+      partnerName,
+      screenshots: result.screenshots,
+    });
+    return sendJson(res, 200, { ...result, comparisonRunId });
+  }
+
+  if (pathname === '/api/compare/runs' && req.method === 'GET') {
+    return sendJson(res, 200, listComparisonRuns());
+  }
+
+  if (pathname === '/api/compare/dashboard' && req.method === 'GET') {
+    return sendJson(res, 200, listLatestRunPerPartner());
+  }
+
+  if (pathname === '/api/compare/export' && req.method === 'GET') {
+    const url = new URL(req.url, `http://localhost:${PORT}`);
+    const runId = Number(url.searchParams.get('runId'));
+    const run = getComparisonRun(runId);
+    if (!run) return sendJson(res, 404, { error: 'Comparison run not found' });
+
+    const XLSX = require('xlsx');
+    const rows = run.diffs.map((diff, index) => ({
+      'Issue ID': index + 1,
+      Category: diff.category,
+      'Page/URL': diff.page_path || '',
+      Description: diff.description || '',
+      Severity: diff.severity,
+      'Dev Value': diff.dev_value || '',
+      'Prod Value': diff.prod_value || '',
+      Recommendation: diff.recommendation || '',
+    }));
+    const sheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, 'Comparison');
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    res.writeHead(200, {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="url-comparison-run-${runId}.xlsx"`,
+      'Content-Length': buffer.length,
+    });
+    return res.end(buffer);
+  }
+
+  const compareRunMatch = pathname.match(/^\/api\/compare\/runs\/(\d+)$/);
+  if (compareRunMatch && req.method === 'GET') {
+    const run = getComparisonRun(Number(compareRunMatch[1]));
+    if (!run) return sendJson(res, 404, { error: 'Comparison run not found' });
+    return sendJson(res, 200, run);
   }
 
   if (pathname === '/api/pins' && req.method === 'GET') {
