@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(QF_DEBUG_DUMP=qf-dbg.json node -e ' *)",
+      "Bash(QF_TRACE=1 node -e ' *)"
+    ]
+  }
+}
